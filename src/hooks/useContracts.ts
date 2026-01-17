@@ -9,7 +9,7 @@ import {
   downloadContractFile,
   StoredContract 
 } from "@/lib/api/storage";
-import { getUserOrganization, Organization } from "@/lib/api/organizations";
+import { getUserOrganizations, Organization } from "@/lib/api/organizations";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,15 +21,21 @@ export function useContracts() {
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [organizations, setOrganizations] = useState<Array<{ organization: Organization; role: string }>>([]);
+  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
   const [needsOrgSetup, setNeedsOrgSetup] = useState(false);
   const { toast } = useToast();
 
   const loadUserData = async (uid: string) => {
-    // Load organization
-    const { organization: org } = await getUserOrganization(uid);
-    setOrganization(org);
-    setNeedsOrgSetup(!org);
+    // Load all organizations
+    const { organizations: orgs } = await getUserOrganizations(uid);
+    setOrganizations(orgs);
+    setNeedsOrgSetup(orgs.length === 0);
+    
+    // Set first org as selected if none selected
+    if (orgs.length > 0 && !selectedOrganization) {
+      setSelectedOrganization(orgs[0].organization);
+    }
 
     // Load contracts (RLS will filter based on user/org membership)
     const { contracts: storedContracts, error } = await fetchUserContracts();
@@ -43,6 +49,8 @@ export function useContracts() {
         filePath: sc.file_path,
       }));
       setContracts(loadedContracts);
+    } else {
+      setContracts([]);
     }
   };
 
@@ -68,12 +76,17 @@ export function useContracts() {
         }, 0);
       } else if (event === 'SIGNED_OUT') {
         setContracts([]);
-        setOrganization(null);
+        setOrganizations([]);
+        setSelectedOrganization(null);
         setNeedsOrgSetup(false);
       }
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  const selectOrganization = useCallback((org: Organization) => {
+    setSelectedOrganization(org);
   }, []);
 
   const uploadContracts = useCallback(async (files: File[]) => {
@@ -121,7 +134,7 @@ export function useContracts() {
         const result = await analyzeContract(contractText, file.name, existingColumnIds);
         
         if (result.success && result.terms) {
-          // Save to database with organization if available
+          // Save to database with selected organization
           const { id: dbId, error: dbError } = await saveContractRecord(
             userId,
             file.name,
@@ -129,7 +142,7 @@ export function useContracts() {
             file.size,
             file.type,
             result.terms,
-            organization?.id
+            selectedOrganization?.id
           );
           
           if (dbError) {
@@ -314,7 +327,8 @@ export function useContracts() {
     pendingSuggestion,
     isReanalyzing,
     userId,
-    organization,
+    organizations,
+    selectedOrganization,
     needsOrgSetup,
     uploadContracts,
     toggleColumn,
@@ -322,5 +336,6 @@ export function useContracts() {
     dismissSuggestion,
     reanalyzeContract,
     refreshContracts,
+    selectOrganization,
   };
 }

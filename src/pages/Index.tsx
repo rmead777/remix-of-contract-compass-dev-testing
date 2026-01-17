@@ -6,11 +6,11 @@ import { StatsCards } from "@/components/StatsCards";
 import { NewTermModal } from "@/components/NewTermModal";
 import { AuthModal } from "@/components/AuthModal";
 import { OrganizationSetup } from "@/components/OrganizationSetup";
+import { OrganizationSwitcher } from "@/components/OrganizationSwitcher";
 import { useContracts } from "@/hooks/useContracts";
 import { Button } from "@/components/ui/button";
-import { Table2, LogIn, LogOut, Loader2, Building2 } from "lucide-react";
+import { Table2, LogIn, LogOut, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
   const {
@@ -21,13 +21,15 @@ const Index = () => {
     pendingSuggestion,
     isReanalyzing,
     userId,
-    organization,
+    organizations,
+    selectedOrganization,
     needsOrgSetup,
     uploadContracts,
     toggleColumn,
     addNewColumn,
     dismissSuggestion,
     refreshContracts,
+    selectOrganization,
   } = useContracts();
 
   const [showTable, setShowTable] = useState(false);
@@ -62,20 +64,19 @@ const Index = () => {
         <div className="animate-fade-in space-y-8">
           {/* Auth Status */}
           <div className="flex items-center justify-end gap-3">
-            {organization && (
-              <Badge variant="secondary" className="gap-1.5">
-                <Building2 className="h-3 w-3" />
-                {organization.name}
-              </Badge>
+            {userId && organizations.length > 0 && (
+              <OrganizationSwitcher
+                organizations={organizations}
+                selectedOrganization={selectedOrganization}
+                onSelect={selectOrganization}
+              />
             )}
             {userId ? (
               <>
-                {needsOrgSetup && (
-                  <Button variant="outline" size="sm" onClick={() => setShowOrgSetup(true)} className="gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Set Up Team
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => setShowOrgSetup(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  {needsOrgSetup ? "Set Up Team" : "Add Team"}
+                </Button>
                 <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
                   <LogOut className="h-4 w-4" />
                   Sign Out

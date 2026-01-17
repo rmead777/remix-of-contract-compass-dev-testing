@@ -50,9 +50,9 @@ export async function createOrganization(
   return { organization: org as Organization, error: null };
 }
 
-export async function getUserOrganization(
+export async function getUserOrganizations(
   userId: string
-): Promise<{ organization: Organization | null; role: string | null; error: string | null }> {
+): Promise<{ organizations: Array<{ organization: Organization; role: string }>; error: string | null }> {
   const { data, error } = await supabase
     .from('organization_members')
     .select(`
@@ -64,23 +64,23 @@ export async function getUserOrganization(
         updated_at
       )
     `)
-    .eq('user_id', userId)
-    .maybeSingle();
+    .eq('user_id', userId);
 
   if (error) {
-    console.error('Error fetching user organization:', error);
-    return { organization: null, role: null, error: error.message };
+    console.error('Error fetching user organizations:', error);
+    return { organizations: [], error: error.message };
   }
 
-  if (!data) {
-    return { organization: null, role: null, error: null };
+  if (!data || data.length === 0) {
+    return { organizations: [], error: null };
   }
 
-  return {
-    organization: data.organizations as unknown as Organization,
-    role: data.role,
-    error: null,
-  };
+  const organizations = data.map((item) => ({
+    organization: item.organizations as unknown as Organization,
+    role: item.role,
+  }));
+
+  return { organizations, error: null };
 }
 
 export async function joinOrganization(
