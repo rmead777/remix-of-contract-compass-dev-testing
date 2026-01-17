@@ -43,4 +43,8 @@ export const DEFAULT_COLUMNS: TableColumn[] = [
   { id: 'confidentiality', label: 'Confidentiality', isDefault: true, order: 10 },
   { id: 'workLocation', label: 'Work Location', isDefault: true, order: 11 },
   { id: 'reportingTo', label: 'Reports To', isDefault: true, order: 12 },
+  { id: 'terminationProvisions', label: 'Termination Provisions', description: 'General termination terms and procedures', isDefault: true, order: 13 },
+  { id: 'terminationForCause', label: 'Termination for Cause', description: 'What qualifies as termination for cause', isDefault: true, order: 14 },
+  { id: 'terminationWithoutCause', label: 'Termination w/o Cause', description: 'At-will and without cause termination terms', isDefault: true, order: 15 },
+  { id: 'severancePay', label: 'Severance Pay', description: 'Severance package upon termination', isDefault: true, order: 16 },
 ];
