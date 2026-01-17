@@ -4,17 +4,21 @@ import { FileUpload } from "@/components/FileUpload";
 import { ContractTable } from "@/components/ContractTable";
 import { StatsCards } from "@/components/StatsCards";
 import { NewTermModal } from "@/components/NewTermModal";
+import { AuthModal } from "@/components/AuthModal";
 import { useContracts } from "@/hooks/useContracts";
 import { Button } from "@/components/ui/button";
-import { Table2 } from "lucide-react";
+import { Table2, LogIn, LogOut, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const {
     contracts,
     columns,
     isProcessing,
+    isLoading,
     pendingSuggestion,
     isReanalyzing,
+    userId,
     uploadContracts,
     toggleColumn,
     addNewColumn,
@@ -22,6 +26,20 @@ const Index = () => {
   } = useContracts();
 
   const [showTable, setShowTable] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleViewSummary = () => {
+    if (!userId) {
+      setShowAuthModal(true);
+    } else {
+      setShowTable(true);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setShowTable(false);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,6 +47,21 @@ const Index = () => {
       
       <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="animate-fade-in space-y-8">
+          {/* Auth Status */}
+          <div className="flex justify-end">
+            {userId ? (
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setShowAuthModal(true)} className="gap-2">
+                <LogIn className="h-4 w-4" />
+                Sign In
+              </Button>
+            )}
+          </div>
+
           {/* Hero Section */}
           <section className="text-center">
             <h2 className="font-serif text-3xl font-bold text-foreground sm:text-4xl">
@@ -59,14 +92,19 @@ const Index = () => {
           )}
 
           {/* View Summary Button */}
-          {contracts.length > 0 && !showTable && (
+          {!showTable && (
             <section className="flex justify-center animate-slide-up">
               <Button
-                onClick={() => setShowTable(true)}
+                onClick={handleViewSummary}
                 size="lg"
                 className="gap-2"
+                disabled={isLoading}
               >
-                <Table2 className="h-5 w-5" />
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Table2 className="h-5 w-5" />
+                )}
                 View Summary
               </Button>
             </section>
@@ -97,6 +135,13 @@ const Index = () => {
           )}
         </div>
       </main>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => setShowTable(true)}
+      />
 
       {/* New Term Suggestion Modal */}
       <NewTermModal
