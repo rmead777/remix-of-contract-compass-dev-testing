@@ -269,24 +269,33 @@ export function ContractTable({
                     return (
                       <td
                         key={column.id}
-                        onClick={() => hasExcerpt && handleCellClick(contract, column)}
-                        className={cn(
-                          "px-4 py-3 text-sm",
-                          hasExcerpt && "cursor-pointer hover:bg-secondary/5",
-                          !hasValue && "text-muted-foreground"
-                        )}
+                        className="px-4 py-3 text-sm"
                       >
-                        <div className="flex items-center gap-2">
+                        {hasExcerpt ? (
+                          <button
+                            onClick={() => handleCellClick(contract, column)}
+                            className={cn(
+                              "group flex items-center gap-2 text-left transition-colors",
+                              "text-primary hover:text-primary/80 hover:underline",
+                              "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 rounded"
+                            )}
+                          >
+                            <span className={cn(
+                              "truncate max-w-[200px]",
+                              hasValue ? "" : "italic opacity-70"
+                            )}>
+                              {term?.value || 'N/A'}
+                            </span>
+                            <Eye className="h-3.5 w-3.5 flex-shrink-0 opacity-50 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        ) : (
                           <span className={cn(
-                            "truncate max-w-[200px]",
-                            hasValue ? "text-foreground" : "italic"
+                            "truncate max-w-[200px] block",
+                            hasValue ? "text-foreground" : "text-muted-foreground italic"
                           )}>
                             {term?.value || 'N/A'}
                           </span>
-                          {hasExcerpt && (
-                            <Eye className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-                          )}
-                        </div>
+                        )}
                       </td>
                     );
                   })}
