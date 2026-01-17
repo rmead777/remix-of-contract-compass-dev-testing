@@ -9,6 +9,7 @@ import {
   downloadContractFile,
   StoredContract 
 } from "@/lib/api/storage";
+import { getUserOrganization, Organization } from "@/lib/api/organizations";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,7 +21,30 @@ export function useContracts() {
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [needsOrgSetup, setNeedsOrgSetup] = useState(false);
   const { toast } = useToast();
+
+  const loadUserData = async (uid: string) => {
+    // Load organization
+    const { organization: org } = await getUserOrganization(uid);
+    setOrganization(org);
+    setNeedsOrgSetup(!org);
+
+    // Load contracts (RLS will filter based on user/org membership)
+    const { contracts: storedContracts, error } = await fetchUserContracts();
+    if (!error && storedContracts.length > 0) {
+      const loadedContracts: Contract[] = storedContracts.map((sc: StoredContract) => ({
+        id: sc.id,
+        fileName: sc.file_name,
+        uploadedAt: new Date(sc.created_at),
+        status: 'completed' as const,
+        terms: sc.analysis_data || {},
+        filePath: sc.file_path,
+      }));
+      setContracts(loadedContracts);
+    }
+  };
 
   // Check auth state and load existing contracts
   useEffect(() => {
@@ -29,41 +53,23 @@ export function useContracts() {
       setUserId(user?.id || null);
       
       if (user) {
-        const { contracts: storedContracts, error } = await fetchUserContracts();
-        if (!error && storedContracts.length > 0) {
-          const loadedContracts: Contract[] = storedContracts.map((sc: StoredContract) => ({
-            id: sc.id,
-            fileName: sc.file_name,
-            uploadedAt: new Date(sc.created_at),
-            status: 'completed' as const,
-            terms: sc.analysis_data || {},
-            filePath: sc.file_path,
-          }));
-          setContracts(loadedContracts);
-        }
+        await loadUserData(user.id);
       }
       setIsLoading(false);
     };
 
     checkAuthAndLoadContracts();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUserId(session?.user?.id || null);
       if (event === 'SIGNED_IN' && session?.user) {
-        const { contracts: storedContracts } = await fetchUserContracts();
-        if (storedContracts.length > 0) {
-          const loadedContracts: Contract[] = storedContracts.map((sc: StoredContract) => ({
-            id: sc.id,
-            fileName: sc.file_name,
-            uploadedAt: new Date(sc.created_at),
-            status: 'completed' as const,
-            terms: sc.analysis_data || {},
-            filePath: sc.file_path,
-          }));
-          setContracts(loadedContracts);
-        }
+        setTimeout(() => {
+          loadUserData(session.user.id);
+        }, 0);
       } else if (event === 'SIGNED_OUT') {
         setContracts([]);
+        setOrganization(null);
+        setNeedsOrgSetup(false);
       }
     });
 
@@ -115,14 +121,15 @@ export function useContracts() {
         const result = await analyzeContract(contractText, file.name, existingColumnIds);
         
         if (result.success && result.terms) {
-          // Save to database
+          // Save to database with organization if available
           const { id: dbId, error: dbError } = await saveContractRecord(
             userId,
             file.name,
             filePath,
             file.size,
             file.type,
-            result.terms
+            result.terms,
+            organization?.id
           );
           
           if (dbError) {
@@ -293,6 +300,12 @@ export function useContracts() {
     setPendingSuggestion(null);
   }, []);
 
+  const refreshContracts = useCallback(async () => {
+    if (userId) {
+      await loadUserData(userId);
+    }
+  }, [userId]);
+
   return {
     contracts,
     columns,
@@ -301,10 +314,13 @@ export function useContracts() {
     pendingSuggestion,
     isReanalyzing,
     userId,
+    organization,
+    needsOrgSetup,
     uploadContracts,
     toggleColumn,
     addNewColumn,
     dismissSuggestion,
     reanalyzeContract,
+    refreshContracts,
   };
 }
