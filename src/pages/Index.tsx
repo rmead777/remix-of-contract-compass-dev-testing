@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { FileUpload } from "@/components/FileUpload";
 import { ContractTable } from "@/components/ContractTable";
 import { StatsCards } from "@/components/StatsCards";
 import { NewTermModal } from "@/components/NewTermModal";
 import { useContracts } from "@/hooks/useContracts";
+import { Button } from "@/components/ui/button";
+import { Table2 } from "lucide-react";
 
 const Index = () => {
   const {
@@ -17,6 +20,8 @@ const Index = () => {
     addNewColumn,
     dismissSuggestion,
   } = useContracts();
+
+  const [showTable, setShowTable] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,18 +58,43 @@ const Index = () => {
             </section>
           )}
 
+          {/* View Summary Button */}
+          {contracts.length > 0 && !showTable && (
+            <section className="flex justify-center animate-slide-up">
+              <Button
+                onClick={() => setShowTable(true)}
+                size="lg"
+                className="gap-2"
+              >
+                <Table2 className="h-5 w-5" />
+                View Summary
+              </Button>
+            </section>
+          )}
+
           {/* Contracts Table */}
-          <section className="animate-slide-up">
-            <h3 className="mb-4 font-serif text-xl font-semibold text-foreground">
-              Contract Analysis
-            </h3>
-            <ContractTable
-              contracts={contracts}
-              columns={columns}
-              onColumnToggle={toggleColumn}
-              isLoading={isProcessing && contracts.length === 0}
-            />
-          </section>
+          {showTable && (
+            <section className="animate-slide-up">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-xl font-semibold text-foreground">
+                  Contract Analysis
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTable(false)}
+                >
+                  Hide Summary
+                </Button>
+              </div>
+              <ContractTable
+                contracts={contracts}
+                columns={columns}
+                onColumnToggle={toggleColumn}
+                isLoading={isProcessing && contracts.length === 0}
+              />
+            </section>
+          )}
         </div>
       </main>
 
