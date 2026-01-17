@@ -41,18 +41,25 @@ export async function saveContractRecord(
   filePath: string,
   fileSize: number,
   mimeType: string,
-  analysisData?: Record<string, any>
+  analysisData?: Record<string, any>,
+  organizationId?: string
 ): Promise<{ id: string | null; error: string | null }> {
+  const insertData: Record<string, any> = {
+    user_id: userId,
+    file_name: fileName,
+    file_path: filePath,
+    file_size: fileSize,
+    mime_type: mimeType,
+    analysis_data: analysisData || null,
+  };
+
+  if (organizationId) {
+    insertData.organization_id = organizationId;
+  }
+
   const { data, error } = await supabase
     .from('contracts')
-    .insert({
-      user_id: userId,
-      file_name: fileName,
-      file_path: filePath,
-      file_size: fileSize,
-      mime_type: mimeType,
-      analysis_data: analysisData || null,
-    })
+    .insert(insertData as any)
     .select('id')
     .single();
 
