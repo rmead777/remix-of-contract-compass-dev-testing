@@ -9,8 +9,10 @@ import { OrganizationSetup } from "@/components/OrganizationSetup";
 import { OrganizationSwitcher } from "@/components/OrganizationSwitcher";
 import { useContracts } from "@/hooks/useContracts";
 import { Button } from "@/components/ui/button";
-import { Table2, LogIn, LogOut, Loader2, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Table2, LogIn, LogOut, Loader2, Plus, Shield, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getRoleLabel } from "@/lib/api/roles";
 
 const Index = () => {
   const {
@@ -23,7 +25,9 @@ const Index = () => {
     userId,
     organizations,
     selectedOrganization,
+    currentRole,
     needsOrgSetup,
+    canUpload,
     uploadContracts,
     toggleColumn,
     addNewColumn,
@@ -63,13 +67,23 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="animate-fade-in space-y-8">
           {/* Auth Status */}
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
             {userId && organizations.length > 0 && (
               <OrganizationSwitcher
                 organizations={organizations}
                 selectedOrganization={selectedOrganization}
                 onSelect={selectOrganization}
               />
+            )}
+            {userId && currentRole && (
+              <Badge variant="outline" className="gap-1.5">
+                {currentRole === 'admin' ? (
+                  <Shield className="h-3 w-3" />
+                ) : currentRole === 'viewer' ? (
+                  <Eye className="h-3 w-3" />
+                ) : null}
+                {getRoleLabel(currentRole)}
+              </Badge>
             )}
             {userId ? (
               <>
@@ -101,16 +115,31 @@ const Index = () => {
             </p>
           </section>
 
-          {/* Upload Section */}
-          <section className="card-elevated mx-auto max-w-2xl p-6">
-            <h3 className="mb-4 font-serif text-lg font-semibold text-foreground">
-              Upload Contracts
-            </h3>
-            <FileUpload 
-              onFilesSelected={uploadContracts} 
-              isProcessing={isProcessing} 
-            />
-          </section>
+          {/* Upload Section - only show for users who can upload */}
+          {(!userId || canUpload) && (
+            <section className="card-elevated mx-auto max-w-2xl p-6">
+              <h3 className="mb-4 font-serif text-lg font-semibold text-foreground">
+                Upload Contracts
+              </h3>
+              <FileUpload 
+                onFilesSelected={uploadContracts} 
+                isProcessing={isProcessing} 
+              />
+            </section>
+          )}
+
+          {/* View-only notice for viewers */}
+          {userId && currentRole === 'viewer' && (
+            <section className="card-elevated mx-auto max-w-2xl p-6 bg-muted/50">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Eye className="h-5 w-5" />
+                <div>
+                  <p className="font-medium text-foreground">View-Only Access</p>
+                  <p className="text-sm">You can view the contract summary but cannot upload or delete contracts.</p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Stats */}
           {contracts.length > 0 && (
