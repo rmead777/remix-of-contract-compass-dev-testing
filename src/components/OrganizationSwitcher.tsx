@@ -1,4 +1,5 @@
 import { Organization } from "@/lib/api/organizations";
+import { AppRole, getRoleLabel } from "@/lib/api/roles";
 import {
   Select,
   SelectContent,
@@ -9,7 +10,7 @@ import {
 import { Building2 } from "lucide-react";
 
 interface OrganizationSwitcherProps {
-  organizations: Array<{ organization: Organization; role: string }>;
+  organizations: Array<{ organization: Organization; role: AppRole }>;
   selectedOrganization: Organization | null;
   onSelect: (org: Organization) => void;
 }
@@ -42,7 +43,7 @@ export function OrganizationSwitcher({
         }
       }}
     >
-      <SelectTrigger className="w-[180px] h-8">
+      <SelectTrigger className="w-[200px] h-8">
         <Building2 className="h-3.5 w-3.5 mr-2" />
         <SelectValue placeholder="Select organization" />
       </SelectTrigger>
@@ -51,7 +52,9 @@ export function OrganizationSwitcher({
           <SelectItem key={organization.id} value={organization.id}>
             <span className="flex items-center gap-2">
               {organization.name}
-              <span className="text-xs text-muted-foreground">({role})</span>
+              <span className="text-xs text-muted-foreground">
+                ({getRoleLabel(role)})
+              </span>
             </span>
           </SelectItem>
         ))}

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { AppRole, setUserRole } from './roles';
 
 export interface Organization {
   id: string;
@@ -31,7 +32,7 @@ export async function createOrganization(
     return { organization: null, error: orgError.message };
   }
 
-  // Add creator as owner
+  // Add creator as owner in organization_members
   const { error: memberError } = await supabase
     .from('organization_members')
     .insert({
@@ -47,14 +48,21 @@ export async function createOrganization(
     return { organization: null, error: memberError.message };
   }
 
+  // Also add to user_roles with admin role
+  const { error: roleError } = await setUserRole(userId, org.id, 'admin');
+  if (roleError) {
+    console.error('Error setting admin role:', roleError);
+  }
+
   return { organization: org as Organization, error: null };
 }
 
 export async function getUserOrganizations(
   userId: string
-): Promise<{ organizations: Array<{ organization: Organization; role: string }>; error: string | null }> {
+): Promise<{ organizations: Array<{ organization: Organization; role: AppRole }>; error: string | null }> {
+  // Get organizations from user_roles table (the source of truth for permissions)
   const { data, error } = await supabase
-    .from('organization_members')
+    .from('user_roles')
     .select(`
       role,
       organizations (
@@ -64,7 +72,8 @@ export async function getUserOrganizations(
         updated_at
       )
     `)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .not('organization_id', 'is', null);
 
   if (error) {
     console.error('Error fetching user organizations:', error);
@@ -75,19 +84,23 @@ export async function getUserOrganizations(
     return { organizations: [], error: null };
   }
 
-  const organizations = data.map((item) => ({
-    organization: item.organizations as unknown as Organization,
-    role: item.role,
-  }));
+  const organizations = data
+    .filter(item => item.organizations)
+    .map((item) => ({
+      organization: item.organizations as unknown as Organization,
+      role: item.role as AppRole,
+    }));
 
   return { organizations, error: null };
 }
 
 export async function joinOrganization(
   organizationId: string,
-  userId: string
+  userId: string,
+  role: AppRole = 'viewer'
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
+  // Add to organization_members
+  const { error: memberError } = await supabase
     .from('organization_members')
     .insert({
       organization_id: organizationId,
@@ -95,9 +108,16 @@ export async function joinOrganization(
       role: 'member',
     });
 
-  if (error) {
-    console.error('Error joining organization:', error);
-    return { error: error.message };
+  if (memberError && !memberError.message.includes('duplicate')) {
+    console.error('Error joining organization:', memberError);
+    return { error: memberError.message };
+  }
+
+  // Add to user_roles with specified role
+  const { error: roleError } = await setUserRole(userId, organizationId, role);
+  if (roleError) {
+    console.error('Error setting user role:', roleError);
+    return { error: roleError };
   }
 
   return { error: null };

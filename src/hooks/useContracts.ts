@@ -10,6 +10,7 @@ import {
   StoredContract 
 } from "@/lib/api/storage";
 import { getUserOrganizations, Organization } from "@/lib/api/organizations";
+import { AppRole, canUploadContracts, canDeleteContracts } from "@/lib/api/roles";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,13 +22,14 @@ export function useContracts() {
   const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<Array<{ organization: Organization; role: string }>>([]);
+  const [organizations, setOrganizations] = useState<Array<{ organization: Organization; role: AppRole }>>([]);
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [currentRole, setCurrentRole] = useState<AppRole | null>(null);
   const [needsOrgSetup, setNeedsOrgSetup] = useState(false);
   const { toast } = useToast();
 
   const loadUserData = async (uid: string) => {
-    // Load all organizations
+    // Load all organizations with roles
     const { organizations: orgs } = await getUserOrganizations(uid);
     setOrganizations(orgs);
     setNeedsOrgSetup(orgs.length === 0);
@@ -35,6 +37,7 @@ export function useContracts() {
     // Set first org as selected if none selected
     if (orgs.length > 0 && !selectedOrganization) {
       setSelectedOrganization(orgs[0].organization);
+      setCurrentRole(orgs[0].role);
     }
 
     // Load contracts (RLS will filter based on user/org membership)
@@ -78,6 +81,7 @@ export function useContracts() {
         setContracts([]);
         setOrganizations([]);
         setSelectedOrganization(null);
+        setCurrentRole(null);
         setNeedsOrgSetup(false);
       }
     });
@@ -87,13 +91,25 @@ export function useContracts() {
 
   const selectOrganization = useCallback((org: Organization) => {
     setSelectedOrganization(org);
-  }, []);
+    // Update current role based on selected org
+    const orgData = organizations.find(o => o.organization.id === org.id);
+    setCurrentRole(orgData?.role || null);
+  }, [organizations]);
 
   const uploadContracts = useCallback(async (files: File[]) => {
     if (!userId) {
       toast({
         title: "Authentication required",
         description: "Please sign in to upload contracts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!canUploadContracts(currentRole)) {
+      toast({
+        title: "Permission denied",
+        description: "You don't have permission to upload contracts. Contact your admin.",
         variant: "destructive",
       });
       return;
@@ -329,7 +345,10 @@ export function useContracts() {
     userId,
     organizations,
     selectedOrganization,
+    currentRole,
     needsOrgSetup,
+    canUpload: canUploadContracts(currentRole),
+    canDelete: canDeleteContracts(currentRole),
     uploadContracts,
     toggleColumn,
     addNewColumn,
