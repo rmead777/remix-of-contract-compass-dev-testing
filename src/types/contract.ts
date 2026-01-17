@@ -11,6 +11,7 @@ export interface Contract {
   status: 'uploading' | 'processing' | 'completed' | 'error';
   errorMessage?: string;
   terms: Record<string, ContractTerm>;
+  filePath?: string;
 }
 
 export interface TableColumn {
